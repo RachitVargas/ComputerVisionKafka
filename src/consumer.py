@@ -9,36 +9,38 @@ consumer = KafkaConsumer('my-topic', bootstrap_servers='localhost:9092')
 model = load_model('/Users/antony.vargasulead.ac.cr/BigData/proyecto_final/algorithms/modelCNN.h5')
 
 
-def kafkastream():
-    for message in consumer:
-        yield np.frombuffer(message.value, np.uint8)
-
 def predict_image(image):
     im = cv2.resize(image, (64, 64))
     im = im.astype('float32')
     im = im / 255.
-    im_input = tf.reshape(im, shape = [1, 64, 64, 3])
+    im_input = tf.reshape(im, shape=[1, 64, 64, 3])
 
     predict_proba = sorted(model.predict(im_input)[0])[-1]
     predict_class = np.argmax(model.predict(im_input))
 
-    if predict_class == 0:
-        predict_label = 'Papel'
-    elif predict_class == 1:
+    if predict_class == 1:
+        predict_label = 'Piedra'
+    elif predict_class == 0:
         predict_label = 'Piedra'
     else:
-        predict_label = 'Tijera'
-
-    return predict_label, round(predict_proba*100,2)
+        predict_label = 'Piedra'
+    return predict_label, round(predict_proba * 100, 2)
 
 def main():
     st.title('Computer Vision with Kafka')
 
-    for frame in kafkastream():
-        image = cv2.imdecode(frame, cv2.IMREAD_COLOR)
-        st.image(image, channels='BGR')
-        st.write(predict_image(image))
-        print(predict_image(image))
-        
+    button_predict = st.button('Predict')
+
+    for message in consumer:
+        frame = cv2.imdecode(np.frombuffer(message.value, np.uint8), cv2.IMREAD_COLOR)
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        st.image(image, channels='RGB')
+
+        if button_predict:
+            st.write(predict_image(image))
+            print(predict_image(image))
+            break
+
+
 if __name__ == '__main__':
     main()
